@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+homelab_reliability_platform_architecture_gameplan.md
+
 # Distribution / packaging
 .Python
 build/
