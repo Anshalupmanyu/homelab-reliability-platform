@@ -1,31 +1,40 @@
-from fastapi import FastAPI
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from typing import Literal
 import uuid
-from pydantic  import BaseModel
-
-class job(BaseModel):
-    compute: float
-    cpu_spike: float | None = None
-    duration: int
-    error: str | None = None
+from pydantic  import BaseModel, Field
+from datetime import datetime, timezone
 
 app = FastAPI(title="HomeLab Reliability Platform API")
 
-@app.post("/jobs", status_code=202)
-def create_job(job: job):
-    job_id = uuid.uuid4()
-    jobs[job_id] = job.dict()
-    return {"job_id": job_id}
+jobs: dict[str, dict] = {}
+
+class jobRequest(BaseModel):
+    task: Literal["compute", "error", "cpu_spike", "memory_leak"] = "compute"
+    duration: int = Field(default=2, ge=1, le=60)
 
 @app.get("/health")
 def read_health():
     return {"status": "ok"}
 
+@app.post("/jobs", status_code=202)
+def create_job(payload: jobRequest):
+    job_id = str(uuid.uuid4())
+    job_record = {
+        "job_id": job_id,
+        "task": payload.task,
+        "duration": payload.duration,
+        "status": "queued",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    jobs[job_id] = job_record
+    return {"job_id": job_id, "status": "queued"} 
+
 jobs: dict[uuid.UUID, dict] = {}
 @app.get("/jobs/{job_id}")
 def read_job(job_id: uuid.UUID):
-    if job_id not in jobs:
+    key = str(job_id)
+    if key not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
-    return {"job_id": job_id}
+    return jobs[key]
 
 
