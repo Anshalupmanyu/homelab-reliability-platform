@@ -10,7 +10,8 @@ class JSONFormatter(logging.Formatter):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage()
+            "message": record.getMessage(),
+            "service": "api"
         }
 
         extra_fields = [

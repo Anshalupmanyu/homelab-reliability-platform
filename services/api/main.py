@@ -112,7 +112,7 @@ def read_job(job_id: uuid.UUID):
             "Failed to retrive job",
             extra={
                 "event": "job_retrieval_failed",
-                "job_id": job_id
+                "job_id": str(job_id)
             }
         )
         raise HTTPException(
