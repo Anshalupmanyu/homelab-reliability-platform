@@ -2,7 +2,6 @@
 import json
 import time
 import signal
-import logging
 import gc
 import redis
 
@@ -26,7 +25,7 @@ running = True
 # 2. TASK FUNCTIONS
 # --------------------------------------------------
 
-def compute(duration: int):
+def compute(duration: int, job_id: str):
     """
     Performs a bounded CPU computation for the
     requested duration.
@@ -34,7 +33,9 @@ def compute(duration: int):
 
     logger.info(
         "Compute task started",
-        extra={"event": "compute_started"}
+        extra={
+            "event": "compute_started",
+            "job_id": job_id}
     )
 
     deadline = time.monotonic() + duration
@@ -49,12 +50,13 @@ def compute(duration: int):
         "Compute task completed",
         extra={
             "event": "compute_completed",
+            "job_id": job_id,
             "result": result
         }
     )
 
 
-def error(duration: int):
+def error(duration: int, job_id: str):
     """
     Intentionally raises an exception.
     Used to test failure handling.
@@ -62,13 +64,16 @@ def error(duration: int):
 
     logger.warning(
         "Error task triggered",
-        extra={"event": "error_task_triggered"}
+        extra={
+            "event": "error_task_triggered",
+            "job_id": job_id
+        }
     )
 
     raise RuntimeError("Intentional error task failure")
 
 
-def cpu_spike(duration: int):
+def cpu_spike(duration: int, job_id: str):
     """
     Generates sustained CPU activity for
     the requested duration.
@@ -76,7 +81,9 @@ def cpu_spike(duration: int):
 
     logger.warning(
         "CPU spike task started",
-        extra={"event": "cpu_spike_started"}
+        extra={
+            "event": "cpu_spike_started",
+            "job_id": job_id}
     )
 
     deadline = time.monotonic() + duration
@@ -89,11 +96,14 @@ def cpu_spike(duration: int):
 
     logger.info(
         "CPU spike task completed",
-        extra={"event": "cpu_spike_completed"}
+        extra={
+            "event": "cpu_spike_completed",
+            "job_id": job_id
+        }
     )
 
 
-def memory_leak(duration: int):
+def memory_leak(duration: int, job_id: str):
     """
     Simulates memory growth.
 
@@ -103,7 +113,10 @@ def memory_leak(duration: int):
 
     logger.warning(
         "Memory leak simulation started",
-        extra={"event": "memory_leak_started"}
+        extra={
+            "event": "memory_leak_started",
+            "job_id": job_id
+        }
     )
 
     memory_chunks = []
@@ -119,6 +132,7 @@ def memory_leak(duration: int):
             "Memory leak simulation completed",
             extra={
                 "event": "memory_leak_completed",
+                "job_id": job_id,
                 "allocated_mb": MEMORY_LIMIT_MB
             }
         )
@@ -168,7 +182,7 @@ def process_job(job_data: dict):
         redis_client.hset(
             redis_key,
             mapping={
-                "status": "running",
+                "status": "processing",
                 "started_at": datetime.now(timezone.utc).isoformat()
             }
         )
@@ -188,7 +202,7 @@ def process_job(job_data: dict):
         if task_function is None:
             raise ValueError(f"Unknown task: {task_name}")
 
-        task_function(duration)
+        task_function(duration, job_id)
 
         # Update job status to completed
         redis_client.hset(
